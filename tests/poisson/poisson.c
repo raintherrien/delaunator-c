@@ -52,13 +52,24 @@ main(void)
     unsigned width  = 960;
     unsigned height = 540;
 
+    /*
+     * There are issues here with the convex hull, where halfedges are
+     * unlinked and Voronoi cells extend beyond our domain. In any
+     * practical use case I would simply shrink the domain and ignore
+     * the hull, which is one solution Delaunator proposes.
+     *
+     * Here I use an overscan when generating the Poisson distribution
+     * and again when drawing to stdout to ignore these artifacts.
+     */
+    float overscan = 2*radius;
+
     /* Seed our random number generator */
     srand((unsigned)time(NULL));
 
     /* Construct the Poisson distribution */
     float *pt = NULL;
     size_t ptsz = 0;
-    result = poisson(&pt, &ptsz, radius, width, height);
+    result = poisson(&pt, &ptsz, radius, width+2*overscan, height+2*overscan);
     if (result != 0) {
         errno = result;
         perror("Error creating Poisson distribution");
@@ -84,42 +95,41 @@ main(void)
         goto error_calloc_rgb;
     }
 
-    /*
-     * Draw our triangle edges as red lines and Voronoi cells in blue.
-     *
-     * TODO: There are issues here with the convex hull, where halfedges
-     * are unlinked and Voronoi cells extend beyond our domain. In any
-     * practical use case I would simply shrink the domain and ignore
-     * the hull, which is one solution Delaunator proposes.
-     */
+    /* Draw triangle edges as red lines */
     for (size_t e = 0; e < ntrivert; ++ e) {
         if (halfedge[e] != SIZE_MAX) {
             float *p = pt + 2*triverts[e];
             float *q = pt + 2*triverts[next_halfedge(e)];
-            putline(rgb, width,height, 255,0,0, p[0],p[1], q[0],q[1]);
+            putline(rgb, width,height, 255,0,0,
+                    p[0]-overscan,p[1]-overscan,
+                    q[0]-overscan,q[1]-overscan);
         }
     }
+
+    /* Draw the Voronoi cells in blue */
     for (size_t e = 0; e < ntrivert; ++ e) {
         if (halfedge[e] != SIZE_MAX) {
             float p[2];
             float q[2];
             triangle_center(triverts, pt, triangle_of_edge(e), p);
             triangle_center(triverts, pt, triangle_of_edge(halfedge[e]), q);
-            putline(rgb, width,height, 0,0,255, p[0],p[1], q[0],q[1]);
+            putline(rgb, width,height, 0,0,255,
+                    p[0]-overscan,p[1]-overscan,
+                    q[0]-overscan,q[1]-overscan);
         }
     }
 
-    /* Draw our distribution as white points */
+    /* Draw points in white */
     for (size_t i = 0; i < ptsz; ++ i) {
         float *p = pt + i*2;
-        long x = lroundf(p[0]);
-        long y = lroundf(p[1]);
-        assert(x >= 0 && x < width);
-        assert(y >= 0 && y < height);
-        int *c = rgb + 3*(y * width + x);
-        c[0] = 255;
-        c[1] = 255;
-        c[2] = 255;
+        long x = lroundf(p[0]-overscan);
+        long y = lroundf(p[1]-overscan);
+        if (x >= 0 && x < width && y >= 0 && y < height) {
+            int *c = rgb + 3*(y * width + x);
+            c[0] = 255;
+            c[1] = 255;
+            c[2] = 255;
+        }
     }
 
     /* Print a PPM image file to stdout */
