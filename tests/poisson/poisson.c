@@ -73,6 +73,9 @@ main(void)
         perror("Error triangulating Poisson distribution");
         goto error_triangulating;
     }
+    size_t *halfedge =  DELAUNAY_HALFEDGE(del, ptsz);
+    size_t *triverts =  DELAUNAY_TRIVERTS(del, ptsz);
+    size_t  ntrivert = *DELAUNAY_NTRIVERT(del, ptsz);
 
     /* Allocate an RGB buffer to draw our magic into */
     int *rgb = calloc(3 * width * height, sizeof *rgb);
@@ -82,15 +85,22 @@ main(void)
     }
 
     /* Draw our triangle edges as red lines */
-    size_t *halfedges =  DELAUNAY_HALFEDGE(del, ptsz);
-    size_t *triverts  =  DELAUNAY_TRIVERTS(del, ptsz);
-    size_t  ntrivert  = *DELAUNAY_NTRIVERT(del, ptsz);
     for (size_t e = 0; e < ntrivert; ++ e) {
-        /* Only draw half of the half edges */
-        if (e < halfedges[e]) {
-            float *p0 = pt + 2*triverts[e];
-            float *p1 = pt + 2*triverts[next_halfedge(e)];
-            putline(rgb, width,height, 255,0,0, p0[0],p0[1], p1[0],p1[1]);
+        if (halfedge[e] != SIZE_MAX) {
+            float *p = pt + 2*triverts[e];
+            float *q = pt + 2*triverts[next_halfedge(e)];
+            putline(rgb, width,height, 255,0,0, p[0],p[1], q[0],q[1]);
+        }
+    }
+
+    /* Draw Voronoi cell boundaries blue */
+    for (size_t e = 0; e < ntrivert; ++ e) {
+        if (halfedge[e] != SIZE_MAX) {
+            float p[2];
+            float q[2];
+            triangle_center(triverts, pt, triangle_of_edge(e), p);
+            triangle_center(triverts, pt, triangle_of_edge(halfedge[e]), q);
+            putline(rgb, width,height, 0,0,255, p[0],p[1], q[0],q[1]);
         }
     }
 

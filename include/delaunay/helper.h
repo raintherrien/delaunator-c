@@ -64,4 +64,6 @@ prev_halfedge(size_t e)
     return (e % 3 == 0) ? e + 2 : e - 1;
 }
 
+void triangle_center(size_t *triverts, float *pt, size_t t, float *q);
+
 #endif /* DELAUNAY_HELPER_H_ */

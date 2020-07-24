@@ -271,6 +271,17 @@ delaunay_free(delaunay *d)
     *d = NULL;
 }
 
+void
+triangle_center(vid *triverts, float *pt, size_t t, float *q)
+{
+    size_t te[3];
+    triangle_edges(t, te);
+    vid tp[3] = { triverts[te[0]], triverts[te[1]], triverts[te[2]] };
+    circc(pt[tp[0]*2],pt[tp[0]*2+1],
+          pt[tp[1]*2],pt[tp[1]*2+1],
+          pt[tp[2]*2],pt[tp[2]*2+1], q);
+}
+
 static int
 seed(float *pt, size_t npt, vid *s)
 {
