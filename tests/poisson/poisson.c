@@ -84,7 +84,14 @@ main(void)
         goto error_calloc_rgb;
     }
 
-    /* Draw our triangle edges as red lines */
+    /*
+     * Draw our triangle edges as red lines and Voronoi cells in blue.
+     *
+     * TODO: There are issues here with the convex hull, where halfedges
+     * are unlinked and Voronoi cells extend beyond our domain. In any
+     * practical use case I would simply shrink the domain and ignore
+     * the hull, which is one solution Delaunator proposes.
+     */
     for (size_t e = 0; e < ntrivert; ++ e) {
         if (halfedge[e] != SIZE_MAX) {
             float *p = pt + 2*triverts[e];
@@ -92,8 +99,6 @@ main(void)
             putline(rgb, width,height, 255,0,0, p[0],p[1], q[0],q[1]);
         }
     }
-
-    /* Draw Voronoi cell boundaries blue */
     for (size_t e = 0; e < ntrivert; ++ e) {
         if (halfedge[e] != SIZE_MAX) {
             float p[2];
