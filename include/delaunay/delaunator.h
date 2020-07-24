@@ -21,12 +21,14 @@
  * size_t hullnext[npt];     // Edge to next edge
  * size_t hullprev[npt];     // Edge to prev edge
  * size_t hulltris[npt];     // Edge to adjacent triangle
- * size_t triverts[npt * 3]; // Triangle vertices
+ * size_t triverts[npt * 6]; // Triangle vertices
  * size_t ntrivert;
  * size_t hullsize;
  * size_t hullstrt;
  *
- * Total size: sizeof(size_t) * (npt * 13 + 3)
+ * Total size: sizeof(size_t) * (npt * 16 + 3)
+ *
+ * helper.h defines macros to retrieve these pointers.
  */
 typedef size_t *delaunay;
 

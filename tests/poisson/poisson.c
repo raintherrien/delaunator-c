@@ -5,6 +5,7 @@
  */
 
 #include "delaunay/delaunator.h"
+#include "delaunay/helper.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>
@@ -16,6 +17,17 @@
 
 #define DELC_PI 3.14159265358979323846f
 
+/*
+ * Returns a random floating point value between [0,1) (excluding 1)
+ */
+static inline float frand(void);
+
+/*
+ * Rasterizes a two dimensional line, uses Bresenham's line algorithm.
+ */
+static void putline(int *rgb, unsigned width, unsigned height,
+                    int r, int g, int b,
+                    long x0, long y0, long x1, long y1);
 /*
  * Returns an array of two dimensional points pt (and length npt)
  * distributed within a domain defined by the dimensions (w,h), and
@@ -31,35 +43,58 @@
  */
 static int poisson(float **pt, size_t *ptsz, float r, float w, float h);
 
-/*
- * Returns a random floating point value between [0,1) (excluding 1)
- */
-static inline float frand(void);
-
 int
 main(void)
 {
+    int result;
+
     float    radius = 16.0f;
     unsigned width  = 960;
     unsigned height = 540;
 
+    /* Seed our random number generator */
     srand((unsigned)time(NULL));
 
+    /* Construct the Poisson distribution */
     float *pt = NULL;
     size_t ptsz = 0;
-    int rc = poisson(&pt, &ptsz, radius, width, height);
-    if (rc != 0) {
-        errno = rc;
+    result = poisson(&pt, &ptsz, radius, width, height);
+    if (result != 0) {
+        errno = result;
         perror("Error creating Poisson distribution");
         return EXIT_FAILURE;
     }
 
+    /* Triangulate the distribution */
+    delaunay del;
+    result = triangulate(&del, pt, ptsz);
+    if (result != 0) {
+        errno = result;
+        perror("Error triangulating Poisson distribution");
+        goto error_triangulating;
+    }
+
+    /* Allocate an RGB buffer to draw our magic into */
     int *rgb = calloc(3 * width * height, sizeof *rgb);
     if (!rgb) {
         perror("Error creating PPM RGB buffer");
-        goto free_poisson;
+        goto error_calloc_rgb;
     }
 
+    /* Draw our triangle edges as red lines */
+    size_t *halfedges =  DELAUNAY_HALFEDGE(del, ptsz);
+    size_t *triverts  =  DELAUNAY_TRIVERTS(del, ptsz);
+    size_t  ntrivert  = *DELAUNAY_NTRIVERT(del, ptsz);
+    for (size_t e = 0; e < ntrivert; ++ e) {
+        /* Only draw half of the half edges */
+        if (e < halfedges[e]) {
+            float *p0 = pt + 2*triverts[e];
+            float *p1 = pt + 2*triverts[next_halfedge(e)];
+            putline(rgb, width,height, 255,0,0, p0[0],p0[1], p1[0],p1[1]);
+        }
+    }
+
+    /* Draw our distribution as white points */
     for (size_t i = 0; i < ptsz; ++ i) {
         float *p = pt + i*2;
         long x = lroundf(p[0]);
@@ -72,6 +107,7 @@ main(void)
         c[2] = 255;
     }
 
+    /* Print a PPM image file to stdout */
     if (printf("P6 %d %d 255 ", width, height) < 0) goto printf_error;
     for (int y = height; y --; )
     for (int x = width;  x --; ) {
@@ -82,6 +118,7 @@ main(void)
         if (printf("%c%c%c", r, g, b) < 0) goto printf_error;
     }
 
+    delaunay_free(&del);
     free(rgb);
     free(pt);
     return EXIT_SUCCESS;
@@ -89,9 +126,42 @@ main(void)
 printf_error:
     perror("Error writing to stdout");
     free(rgb);
-free_poisson:
+error_calloc_rgb:
+    delaunay_free(&del);
+error_triangulating:
     free(pt);
     return EXIT_FAILURE;
+}
+
+static inline float
+frand(void)
+{
+    return (float)rand() / (float)(RAND_MAX - 1);
+}
+
+static void
+putline(int *rgb, unsigned width, unsigned height, int r, int g, int b,
+        long x0, long y0, long x1, long y1)
+{
+    long dx = +labs(x1 - x0);
+    long dy = -labs(y1 - y0);
+    long sx = x0 < x1 ? 1 : -1;
+    long sy = y0 < y1 ? 1 : -1;
+    long de = dx + dy;
+    long e2 = 0; /* Accumulate error */
+
+    for(;;) {
+        if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
+            size_t i = 3 * (y0 * width + x0);
+            rgb[i+0] = r;
+            rgb[i+1] = g;
+            rgb[i+2] = b;
+        }
+        if (x0 == x1 && y0 == y1) break;
+        e2 = 2 * de;
+        if (e2 >= dy) { de += dy; x0 += sx; }
+        if (e2 <= dx) { de += dx; y0 += sy; }
+    }
 }
 
 static int
@@ -202,10 +272,4 @@ free_buffers:
     free(lookup);
     free(*pt);
     return errno;
-}
-
-static inline float
-frand(void)
-{
-    return (float)rand() / (float)(RAND_MAX - 1);
 }
