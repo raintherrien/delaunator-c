@@ -120,7 +120,7 @@ triangulate(delaunay *d, float *pt, size_t npt)
     memset(*d, 0xFF, DELAUNAYSZ(npt) * sizeof **d);
 
     /* Find seed */
-    vid s[3];
+    vid s[3] = { 0 };
     if (seed(pt, npt, s) != 0) {
         perror("Error finding delaunay seed");
         goto free_buffers;

@@ -1,7 +1,6 @@
 /*
  * Simple delaunay triangulation and voronoi partition of Poisson
  * distributed points.
- * TODO: Actual triangulation!
  */
 
 #include "delaunay/delaunator.h"
