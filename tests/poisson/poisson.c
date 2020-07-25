@@ -30,8 +30,8 @@ static void putline(int *rgb, unsigned width, unsigned height,
 /*
  * Returns an array of two dimensional points pt (and length npt)
  * distributed within a domain defined by the dimensions (w,h), and
- * return zero on success. Returns errno on failure, pt and npt are
- * undefined.
+ * return zero on success. Sets and returns the value in errno on
+ * failure, pt and npt are undefined.
  *
  * This is a crude implementation of:
  *  Robert Bridson, 2007. "Fast Poisson Disk Sampling in Arbitrary
@@ -45,8 +45,6 @@ static int poisson(float **pt, size_t *ptsz, float r, float w, float h);
 int
 main(void)
 {
-    int result;
-
     float    radius = 16.0f;
     unsigned width  = 960;
     unsigned height = 540;
@@ -68,18 +66,16 @@ main(void)
     /* Construct the Poisson distribution */
     float *pt = NULL;
     size_t ptsz = 0;
-    result = poisson(&pt, &ptsz, radius, width+2*overscan, height+2*overscan);
-    if (result != 0) {
-        errno = result;
+    float dw = width+2*overscan;
+    float dh = height+2*overscan;
+    if (poisson(&pt, &ptsz, radius, dw, dh) != 0) {
         perror("Error creating Poisson distribution");
         return EXIT_FAILURE;
     }
 
     /* Triangulate the distribution */
     delaunay del;
-    result = triangulate(&del, pt, ptsz);
-    if (result != 0) {
-        errno = result;
+    if (triangulate(&del, pt, ptsz) != 0) {
         perror("Error triangulating Poisson distribution");
         goto error_triangulating;
     }

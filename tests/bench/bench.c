@@ -33,8 +33,6 @@ static inline void uniform(float *pt, size_t npt);
 int
 main(void)
 {
-    int result;
-
     /* Seed our random number generator */
     srand((unsigned)time(NULL));
 
@@ -51,14 +49,12 @@ main(void)
             perror("Error measuring time");                  \
             goto error_triangulating;                        \
         }                                                    \
-        result = triangulate(&del, pt, npt);                 \
-        if (clock_gettime(CLOCK_MONOTONIC, &t1) != 0) {      \
-            perror("Error measuring time");                  \
+        if (triangulate(&del, pt, npt) != 0) {               \
+            perror("Error triangulating " #FN);              \
             goto error_triangulating;                        \
         }                                                    \
-        if (result != 0) {                                   \
-            errno = result;                                  \
-            perror("Error triangulating " #FN);              \
+        if (clock_gettime(CLOCK_MONOTONIC, &t1) != 0) {      \
+            perror("Error measuring time");                  \
             goto error_triangulating;                        \
         }                                                    \
         float tD = 1000.0f * t1.tv_sec + 1e-6 * t1.tv_nsec   \

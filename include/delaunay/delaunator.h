@@ -34,7 +34,7 @@ typedef size_t *delaunay;
 
 /*
  * Calculates the delaunay triangulation of points and returns zero on
- * success, otherwise returns an error code.
+ * success, otherwise sets and returns the value in errno.
  *
  * Internally performs allocation of delaunay array. delaunay could be
  * passed as a pre-allocated array, but the user would need a function
