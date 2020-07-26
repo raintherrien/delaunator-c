@@ -261,6 +261,7 @@ free_buffers:
     free(pds);
     *d = NULL;
     return errno;
+#undef LEGALIZE
 #undef ADDTRI
 }
 
