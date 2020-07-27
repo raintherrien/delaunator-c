@@ -36,6 +36,10 @@ typedef size_t *delaunay;
  * Calculates the delaunay triangulation of points and returns zero on
  * success, otherwise sets and returns the value in errno.
  *
+ * npt is checked for overflow of internal buffers, which caps our max
+ * point count at something ridiculous like 1.1529215e+18 points. Good
+ * luck with that.
+ *
  * Internally performs allocation of delaunay array. delaunay could be
  * passed as a pre-allocated array, but the user would need a function
  * to determine the required size and that is probably unecessary.

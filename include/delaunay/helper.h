@@ -11,9 +11,7 @@
 #ifndef DELAUNAY_HELPER_H_
 #define DELAUNAY_HELPER_H_
 
-/*
- * Pointers into buffer; see delaunator.h for layout
- */
+/* Pointers into buffer; see delaunator.h for layout */
 #define DELAUNAY_HALFEDGE(D,NPT) ((D))
 #define DELAUNAY_HULLHASH(D,NPT) ((D) + (NPT) * 6)
 #define DELAUNAY_HULLNEXT(D,NPT) ((D) + (NPT) * 7)
@@ -23,7 +21,10 @@
 #define DELAUNAY_NTRIVERT(D,NPT) ((D) + (NPT) * 16)
 #define DELAUNAY_HULLSIZE(D,NPT) ((D) + (NPT) * 16 + 1)
 #define DELAUNAY_HULLSTRT(D,NPT) ((D) + (NPT) * 16 + 2)
-#define DELAUNAYSZ(NPT)                ((NPT) * 16 + 3)
+/* Size of complete buffer */
+#define DELAUNAY_SZ(NPT)         ((NPT) * 16 + 3)
+/* Max number of points before overflow */
+#define DELAUNAY_MAXNPT          ((SIZE_MAX - 3) / 16 / sizeof(size_t))
 
 /*
  * ---------------------------------------------------------------------

@@ -22,7 +22,7 @@ endif()
 # Compiler flags
 set(DELC_COMMON_C_FLAGS "-Wall -Werror -Wextra -pedantic")
 if(DELC_BUILD_SAN)
-    set(DELC_COMMON_C_FLAGS "${DELC_COMMON_C_FLAGS} -fsanitize=address -fsanitize=leak -fsanitize=undefined")
+    set(DELC_COMMON_C_FLAGS "${DELC_COMMON_C_FLAGS} -fsanitize=address,leak,undefined,pointer-compare,pointer-subtract -fstack-protector")
 endif()
 set(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS_DEBUG}          ${DELC_COMMON_C_FLAGS} -g3")
 set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE}        ${DELC_COMMON_C_FLAGS}")

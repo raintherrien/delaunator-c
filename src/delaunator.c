@@ -85,10 +85,19 @@ static int pointdistcmp(const void *xa, const void *xb);
 int
 triangulate(delaunay *d, float *pt, size_t npt)
 {
-    assert(npt >= 3);
-    assert(npt / 3 < SIZE_MAX);
+    if (npt < 3) {
+        errno = ERANGE;
+        perror("Less than three points cannot be triangulated");
+        return errno;
+    }
 
-    *d = malloc(DELAUNAYSZ(npt) * sizeof **d);
+    if (npt > DELAUNAY_MAXNPT) {
+        errno = ERANGE;
+        perror("Number of points would overflow buffer");
+        return errno;
+    }
+
+    *d = malloc(DELAUNAY_SZ(npt) * sizeof **d);
 
     /* Define pointers into buffer; see delaunator.h for layout */
     tid    *halfedge = DELAUNAY_HALFEDGE(*d, npt);
@@ -101,7 +110,15 @@ triangulate(delaunay *d, float *pt, size_t npt)
     size_t *hullsize = DELAUNAY_HULLSIZE(*d, npt);
     size_t *hullstrt = DELAUNAY_HULLSTRT(*d, npt);
 
-    /* Array of point indices to sort by distance from seed */
+    /*
+     * Array of point indices to sort by distance from seed and a fixed
+     * size stack for legalize.
+     *
+     * Static asserts here that: if the buffer allocation is safe from
+     * overflow, then we're definitely safe with these temp allocations.
+     */
+    _Static_assert(sizeof(struct pointdist) <= 16, "");
+    _Static_assert(sizeof(tid)              <= 16, "");
     struct pointdist *pds = malloc(npt * sizeof *pds);
     /* Fixed sized stack for legalize */
     tid *stack = malloc(npt * sizeof *stack);
@@ -117,7 +134,7 @@ triangulate(delaunay *d, float *pt, size_t npt)
                              hullstrt, pt, npt, T, stack);
 
     /* Assign initial values to SIZE_MAX, which means no vert/tri */
-    memset(*d, 0xFF, DELAUNAYSZ(npt) * sizeof **d);
+    memset(*d, 0xFF, DELAUNAY_SZ(npt) * sizeof **d);
 
     /* Find seed */
     vid s[3] = { 0 };
