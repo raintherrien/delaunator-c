@@ -44,5 +44,5 @@ target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
 # Tests
 if(DELC_BUILD_TESTS)
-  add_subdirectory(${CMAKE_SOURCE_DIR}/tests)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
 endif()
