@@ -3,7 +3,7 @@
  * https://github.com/mapbox/delaunator
  *
  * Copyright (c) 2017, Mapbox
- * Copyright (c) 2020, Rain Therrien
+ * Copyright (c) 2021, Rain Therrien
  * Distributed under the ISC license.
  * See accompanying LICENSE
  */
@@ -14,41 +14,42 @@
 #include <stddef.h>
 
 /*
- * Layout depends on point count and shouldn't matter externally anyway.
+ * triangulate() calculates the delaunay triangulation of points (pt).
+ * npt is the length or number of points, represented by two contiguous
+ * floating point coordinates, in pt. The results are stored in
+ * delaunay, which helper.h provides macros for accessing.
+ * Zero is returned on success, otherwise the state of delaunay is
+ * unspecified and errno is returned as:
+ * EINVAL shall be returned if all points are colinear;
+ * ERANGE shall be returned if less than three points are passed, or if
+ * the number of points would cause a numeric overflow;
+ * ENOMEM shall be returned if triangulate is unable to allocate scrach
+ * buffers (See TODO below).
  *
- * size_t halfedge[npt * 6]; // Edge to adjacent triangle
- * size_t hullhash[npt];     // Hull verts in order of pseudo-angle
- * size_t hullnext[npt];     // Edge to next edge
- * size_t hullprev[npt];     // Edge to prev edge
- * size_t hulltris[npt];     // Edge to adjacent triangle
- * size_t triverts[npt * 6]; // Triangle vertices
- * size_t ntrivert;
- * size_t hullsize;
- * size_t hullstrt;
- *
+ * delaunay array layout depends on point count:
+ *   size_t halfedge[npt * 6]; // Edge to adjacent triangle
+ *   size_t hullhash[npt];     // Hull verts in order of pseudo-angle
+ *   size_t hullnext[npt];     // Edge to next edge
+ *   size_t hullprev[npt];     // Edge to prev edge
+ *   size_t hulltris[npt];     // Edge to adjacent triangle
+ *   size_t triverts[npt * 6]; // Triangle vertices
+ *   size_t ntrivert;
+ *   size_t hullsize;
+ *   size_t hullstrt;
+ * helper.h defines macros to retrieve these pointers.
  * Total size: sizeof(size_t) * (npt * 16 + 3)
  *
- * helper.h defines macros to retrieve these pointers.
- */
-typedef size_t *delaunay;
-
-/*
- * Calculates the delaunay triangulation of points and returns zero on
- * success, otherwise sets and returns the value in errno.
+ * Use the DELAUNAY_SZ macro to allocate this array.
  *
- * npt is checked for overflow of internal buffers, which caps our max
- * point count at something ridiculous like 1.1529215e+18 points. Good
- * luck with that.
- *
- * Internally performs allocation of delaunay array. delaunay could be
- * passed as a pre-allocated array, but the user would need a function
- * to determine the required size and that is probably unecessary.
+ * TODO: This algorithm DOES perform two allocations which can fail:
+ * one for a fixed sized flip stack and one for a point distance field.
+ * Both of these could be hoisted out into a "scratch" buffer allocated
+ * by the user.
  */
-int triangulate(delaunay *, float *pt, size_t npt);
 
-/*
- * Frees data allocated by triangulate and destroys a delaunay state.
- */
-void delaunay_free(delaunay *);
+#define DELAUNAY_SZ(NPT) ((NPT) * 16 + 3)
+
+int triangulate(size_t *delaunay, float *pt, size_t npt);
 
 #endif /* DELAUNAY_DELAUNATOR_H_ */
+

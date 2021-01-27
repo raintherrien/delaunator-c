@@ -1,14 +1,9 @@
-cmake_minimum_required(VERSION 3.9)
-project(delaunator-c C)
+cmake_minimum_required(VERSION 3.13)
+project(delaunator-c VERSION 1 LANGUAGES C)
 
-# Options
-option(DELC_BUILD_TESTS "Build test programs" OFF)
-option(DELC_BUILD_SAN   "Build with sanitizers" OFF)
-
-# C standard
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED YES)
-set(CMAKE_C_EXTENSIONS NO)
+set(CMAKE_C_STANDARD          99)
+set(CMAKE_C_STANDARD_REQUIRED OFF)
+set(CMAKE_C_EXTENSIONS        OFF)
 
 # Try to compile release
 set(DEFAULT_BUILD_TYPE "Release")
@@ -19,30 +14,20 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-# Compiler flags
-set(DELC_COMMON_C_FLAGS "-Wall -Werror -Wextra -pedantic")
-if(DELC_BUILD_SAN)
-    set(DELC_COMMON_C_FLAGS "${DELC_COMMON_C_FLAGS} -fsanitize=address,leak,undefined,pointer-compare,pointer-subtract -fstack-protector")
-endif()
-set(CMAKE_C_FLAGS_DEBUG          "${CMAKE_C_FLAGS_DEBUG}          ${DELC_COMMON_C_FLAGS} -g3")
-set(CMAKE_C_FLAGS_RELEASE        "${CMAKE_C_FLAGS_RELEASE}        ${DELC_COMMON_C_FLAGS}")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} ${DELC_COMMON_C_FLAGS} -g3")
-set(CMAKE_C_FLAGS_MINSIZEREL     "${CMAKE_C_FLAGS_MINSIZEREL}     ${DELC_COMMON_C_FLAGS}")
-
-# Try to enable LTO
-include(CheckIPOSupported)
-check_ipo_supported(RESULT IS_IPO_SUPPORTED OUTPUT output)
-if(IS_IPO_SUPPORTED)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)
-endif()
-
-# Executable, source dir
 set(DELC_SOURCES
   ${PROJECT_SOURCE_DIR}/src/delaunator.c)
-add_library(${PROJECT_NAME} STATIC ${DELC_SOURCES})
-target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+add_library(delaunator-c ${DELC_SOURCES})
+target_include_directories(delaunator-c PUBLIC ${PROJECT_SOURCE_DIR}/include)
 
-# Tests
-if(DELC_BUILD_TESTS)
-  add_subdirectory(${PROJECT_SOURCE_DIR}/tests)
+option(DELC_BUILD_SAN "Build with sanitizers" OFF)
+if(DELC_BUILD_SAN)
+    target_compile_options(delaunator-c PUBLIC -fsanitize=address,leak,undefined,pointer-compare,pointer-subtract -fstack-protector)
+    target_link_options   (delaunator-c PUBLIC -fsanitize=address,leak,undefined,pointer-compare,pointer-subtract -fstack-protector)
 endif()
+
+option(DELC_BUILD_EXAMPLES "Build example programs" OFF)
+if(DELC_BUILD_EXAMPLES)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/examples/bench)
+  add_subdirectory(${PROJECT_SOURCE_DIR}/examples/poisson)
+endif()
+

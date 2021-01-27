@@ -74,8 +74,8 @@ main(void)
     }
 
     /* Triangulate the distribution */
-    delaunay del;
-    if (triangulate(&del, pt, ptsz) != 0) {
+    size_t *del = calloc(DELAUNAY_SZ(ptsz), sizeof *del);
+    if (del == NULL || triangulate(del, pt, ptsz) != 0) {
         perror("Error triangulating Poisson distribution");
         goto error_triangulating;
     }
@@ -138,7 +138,7 @@ main(void)
         if (printf("%c%c%c", r, g, b) < 0) goto printf_error;
     }
 
-    delaunay_free(&del);
+    free(del);
     free(rgb);
     free(pt);
     return EXIT_SUCCESS;
@@ -147,8 +147,8 @@ printf_error:
     perror("Error writing to stdout");
     free(rgb);
 error_calloc_rgb:
-    delaunay_free(&del);
 error_triangulating:
+    free(del);
     free(pt);
     return EXIT_FAILURE;
 }
@@ -293,3 +293,4 @@ free_buffers:
     free(*pt);
     return errno;
 }
+

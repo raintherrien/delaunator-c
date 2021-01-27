@@ -3,7 +3,7 @@
  * https://github.com/mapbox/delaunator
  *
  * Copyright (c) 2017, Mapbox
- * Copyright (c) 2020, Rain Therrien
+ * Copyright (c) 2021, Rain Therrien
  * Distributed under the ISC license.
  * See accompanying LICENSE
  */
@@ -21,8 +21,6 @@
 #define DELAUNAY_NTRIVERT(D,NPT) ((D) + (NPT) * 16)
 #define DELAUNAY_HULLSIZE(D,NPT) ((D) + (NPT) * 16 + 1)
 #define DELAUNAY_HULLSTRT(D,NPT) ((D) + (NPT) * 16 + 2)
-/* Size of complete buffer */
-#define DELAUNAY_SZ(NPT)         ((NPT) * 16 + 3)
 /* Max number of points before overflow */
 #define DELAUNAY_MAXNPT          ((SIZE_MAX - 3) / 16 / sizeof(size_t))
 
@@ -68,3 +66,4 @@ prev_halfedge(size_t e)
 void triangle_center(size_t *triverts, float *pt, size_t t, float *q);
 
 #endif /* DELAUNAY_HELPER_H_ */
+

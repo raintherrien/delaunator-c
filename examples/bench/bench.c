@@ -37,8 +37,9 @@ main(void)
     srand((unsigned)time(NULL));
 
     size_t npt = 100000;
-    float *pt = calloc(2 * npt, sizeof *pt);
-    if (!pt) {
+    float  *pt  = calloc(2 * npt, sizeof *pt);
+    size_t *del = calloc(DELAUNAY_SZ(npt), sizeof *del);
+    if (pt == NULL || del == NULL) {
         perror("Error allocating point buffer");
         return EXIT_FAILURE;
     }
@@ -49,7 +50,7 @@ main(void)
             perror("Error measuring time");                  \
             goto error_triangulating;                        \
         }                                                    \
-        if (triangulate(&del, pt, npt) != 0) {               \
+        if (triangulate(del, pt, npt) != 0) {               \
             perror("Error triangulating " #FN);              \
             goto error_triangulating;                        \
         }                                                    \
@@ -65,18 +66,14 @@ main(void)
         }                                                    \
     } while (0)
 
-    delaunay del;
     struct timespec t0;
     struct timespec t1;
     BENCHMARK(uniform);
-    delaunay_free(&del);
     BENCHMARK(gaussian);
-    delaunay_free(&del);
     BENCHMARK(grid);
-    delaunay_free(&del);
     BENCHMARK(degenerate);
-    delaunay_free(&del);
 
+    free(del);
     free(pt);
     return EXIT_SUCCESS;
 
@@ -145,3 +142,4 @@ uniform(float *pt, size_t npt)
         pt[i*2+1] = frand() * 1e3;
     }
 }
+

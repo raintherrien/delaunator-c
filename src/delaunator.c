@@ -8,7 +8,6 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <stdio.h>
 #include <string.h>
 
 /* Internal aliases for some type clarity */
@@ -83,32 +82,28 @@ struct pointdist { vid i; float d; };
 static int pointdistcmp(const void *xa, const void *xb);
 
 int
-triangulate(delaunay *d, float *pt, size_t npt)
+triangulate(size_t *delaunay, float *pt, size_t npt)
 {
     if (npt < 3) {
         errno = ERANGE;
-        perror("Less than three points cannot be triangulated");
         return errno;
     }
 
     if (npt > DELAUNAY_MAXNPT) {
         errno = ERANGE;
-        perror("Number of points would overflow buffer");
         return errno;
     }
 
-    *d = malloc(DELAUNAY_SZ(npt) * sizeof **d);
-
     /* Define pointers into buffer; see delaunator.h for layout */
-    tid    *halfedge = DELAUNAY_HALFEDGE(*d, npt);
-    vid    *hullhash = DELAUNAY_HULLHASH(*d, npt);
-    vid    *hullnext = DELAUNAY_HULLNEXT(*d, npt);
-    vid    *hullprev = DELAUNAY_HULLPREV(*d, npt);
-    tid    *hulltris = DELAUNAY_HULLTRIS(*d, npt);
-    vid    *triverts = DELAUNAY_TRIVERTS(*d, npt);
-    size_t *ntrivert = DELAUNAY_NTRIVERT(*d, npt);
-    size_t *hullsize = DELAUNAY_HULLSIZE(*d, npt);
-    size_t *hullstrt = DELAUNAY_HULLSTRT(*d, npt);
+    tid    *halfedge = DELAUNAY_HALFEDGE(delaunay, npt);
+    vid    *hullhash = DELAUNAY_HULLHASH(delaunay, npt);
+    vid    *hullnext = DELAUNAY_HULLNEXT(delaunay, npt);
+    vid    *hullprev = DELAUNAY_HULLPREV(delaunay, npt);
+    tid    *hulltris = DELAUNAY_HULLTRIS(delaunay, npt);
+    vid    *triverts = DELAUNAY_TRIVERTS(delaunay, npt);
+    size_t *ntrivert = DELAUNAY_NTRIVERT(delaunay, npt);
+    size_t *hullsize = DELAUNAY_HULLSIZE(delaunay, npt);
+    size_t *hullstrt = DELAUNAY_HULLSTRT(delaunay, npt);
 
     /*
      * Array of point indices to sort by distance from seed and a fixed
@@ -123,9 +118,8 @@ triangulate(delaunay *d, float *pt, size_t npt)
     /* Fixed sized stack for legalize */
     tid *stack = malloc(npt * sizeof *stack);
 
-    if (*d == NULL || pds == NULL || stack == NULL)
+    if (pds == NULL || stack == NULL)
     {
-        perror("Error allocating delaunay");
         goto free_buffers;
     }
 
@@ -134,12 +128,11 @@ triangulate(delaunay *d, float *pt, size_t npt)
                              hullstrt, pt, npt, T, stack);
 
     /* Assign initial values to SIZE_MAX, which means no vert/tri */
-    memset(*d, 0xFF, DELAUNAY_SZ(npt) * sizeof **d);
+    memset(delaunay, 0xFF, DELAUNAY_SZ(npt) * sizeof *delaunay);
 
     /* Find seed */
     vid s[3] = { 0 };
     if (seed(pt, npt, s) != 0) {
-        perror("Error finding delaunay seed");
         goto free_buffers;
     }
 
@@ -273,20 +266,11 @@ triangulate(delaunay *d, float *pt, size_t npt)
     return 0;
 
 free_buffers:
-    free(*d);
     free(stack);
     free(pds);
-    *d = NULL;
     return errno;
 #undef LEGALIZE
 #undef ADDTRI
-}
-
-void
-delaunay_free(delaunay *d)
-{
-    free(*d);
-    *d = NULL;
 }
 
 void
@@ -359,7 +343,6 @@ seed(float *pt, size_t npt, vid *s)
      */
     if (minr == FLT_MAX) {
         errno = EINVAL;
-        perror("Points are colinear");
         return errno;
     }
 
@@ -580,3 +563,4 @@ pointdistcmp(const void *xa, const void *xb)
     if (a->d > b->d) return 1;
     return 0;
 }
+
