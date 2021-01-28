@@ -16,10 +16,37 @@
 
 #define DELC_PI 3.14159265358979323846f
 
+float    radius = 16.0f;
+unsigned width  = 960;
+unsigned height = 540;
+
 /*
  * Returns a random floating point value between [0,1) (excluding 1)
  */
 static inline float frand(void);
+
+/*
+ * Returns whether a 2D point (p) is within triangle (a,b,c)
+ */
+static int
+pt_in_tri(const float * restrict p,
+          const float * restrict a,
+          const float * restrict b,
+          const float * restrict c);
+
+/*
+ * Returns whether a 2D point (p) is within a polygon, defined by points
+ * pol.
+ */
+static int
+pt_in_pol(const float * restrict p,
+          const float * restrict pol,
+          size_t                 polsz);
+
+/*
+ * Calculates an RGB value from the first 12 bits of a size_t index.
+ */
+static void swizzle(size_t i, int *rgb);
 
 /*
  * Rasterizes a two dimensional line, uses Bresenham's line algorithm.
@@ -27,6 +54,19 @@ static inline float frand(void);
 static void putline(int *rgb, unsigned width, unsigned height,
                     int r, int g, int b,
                     long x0, long y0, long x1, long y1);
+
+/*
+ * Rasterizes a triangle, suitable callback for foreach_tri()
+ */
+static void puttri(void *xrgb, size_t t, const float * restrict a,
+                                         const float * restrict b,
+                                         const float * restrict c);
+
+/*
+ * Rasterizes a voronoi cell, suitable callback for foreach_cell_dup()
+ */
+static void putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt);
+
 /*
  * Returns an array of two dimensional points pt (and length npt)
  * distributed within a domain defined by the dimensions (w,h), and
@@ -43,22 +83,13 @@ static void putline(int *rgb, unsigned width, unsigned height,
 static int poisson(float **pt, size_t *ptsz, float r, float w, float h);
 
 int
-main(void)
+main(int argc, char **argv)
 {
-    float    radius = 16.0f;
-    unsigned width  = 960;
-    unsigned height = 540;
-
-    /*
-     * There are issues here with the convex hull, where halfedges are
-     * unlinked and Voronoi cells extend beyond our domain. In any
-     * practical use case I would simply shrink the domain and ignore
-     * the hull, which is one solution Delaunator proposes.
-     *
-     * Here I use an overscan when generating the Poisson distribution
-     * and again when drawing to stdout to ignore these artifacts.
-     */
-    float overscan = 2*radius;
+    int mode; /* 0 == triangulation, 1 == voronoi */
+    if (argc < 2) goto print_help;
+    else if (strcmp(argv[1], "-t") == 0) mode = 0;
+    else if (strcmp(argv[1], "-v") == 0) mode = 1;
+    else goto print_help;
 
     /* Seed our random number generator */
     srand((unsigned)time(NULL));
@@ -66,9 +97,7 @@ main(void)
     /* Construct the Poisson distribution */
     float *pt = NULL;
     size_t ptsz = 0;
-    float dw = width+2*overscan;
-    float dh = height+2*overscan;
-    if (poisson(&pt, &ptsz, radius, dw, dh) != 0) {
+    if (poisson(&pt, &ptsz, radius, width, height) != 0) {
         perror("Error creating Poisson distribution");
         return EXIT_FAILURE;
     }
@@ -90,35 +119,17 @@ main(void)
         goto error_calloc_rgb;
     }
 
-    /* Draw triangle edges as red lines */
-    for (size_t e = 0; e < ntrivert; ++ e) {
-        if (halfedge[e] != SIZE_MAX) {
-            float *p = pt + 2*triverts[e];
-            float *q = pt + 2*triverts[next_halfedge(e)];
-            putline(rgb, width,height, 255,0,0,
-                    p[0]-overscan,p[1]-overscan,
-                    q[0]-overscan,q[1]-overscan);
-        }
-    }
-
-    /* Draw the Voronoi cells in blue */
-    for (size_t e = 0; e < ntrivert; ++ e) {
-        if (halfedge[e] != SIZE_MAX) {
-            float p[2];
-            float q[2];
-            triangle_center(triverts, pt, triangle_of_edge(e), p);
-            triangle_center(triverts, pt, triangle_of_edge(halfedge[e]), q);
-            putline(rgb, width,height, 0,0,255,
-                    p[0]-overscan,p[1]-overscan,
-                    q[0]-overscan,q[1]-overscan);
-        }
+    if (mode == 0) {
+        foreach_tri(del, pt, ptsz, puttri, rgb);
+    } else {
+        foreach_cell_dup(del, pt, ptsz, putcell, rgb);
     }
 
     /* Draw points in white */
-    for (size_t i = 0; i < ptsz; ++ i) {
+    for (size_t i = 0; i < ptsz&&0; ++ i) {
         float *p = pt + i*2;
-        long x = lroundf(p[0]-overscan);
-        long y = lroundf(p[1]-overscan);
+        long x = lroundf(p[0]);
+        long y = lroundf(p[1]);
         if (x >= 0 && x < width && y >= 0 && y < height) {
             int *c = rgb + 3*(y * width + x);
             c[0] = 255;
@@ -151,12 +162,78 @@ error_triangulating:
     free(del);
     free(pt);
     return EXIT_FAILURE;
+
+print_help:
+    fprintf(stderr, "Usage: ./poisson [-t|-v] > filename.ppm\n"
+                    "\t-t  Rasterize Delaunay triangles\n"
+                    "\t-v  Rasterize Voronoi diagram\n");
+    return EXIT_SUCCESS;
 }
 
 static inline float
 frand(void)
 {
     return (float)rand() / (float)(RAND_MAX - 1);
+}
+
+static int
+pt_in_tri(const float * restrict p,
+          const float * restrict a,
+          const float * restrict b,
+          const float * restrict c)
+{
+#define SGN(A,B,C) (A[0]-C[0])*(B[1]-C[1])-(B[0]-C[0])*(A[1]-C[1])
+    float d0 = SGN(p, a, b);
+    float d1 = SGN(p, b, c);
+    float d2 = SGN(p, c, a);
+    return !( ((d0 < 0) || (d1 < 0) || (d2 < 0)) &&
+              ((d0 > 0) || (d1 > 0) || (d2 > 0)) );
+#undef  SGN
+}
+
+static int
+pt_in_pol(const float * restrict p,
+          const float * restrict pol,
+          size_t                 polsz)
+{
+    /* I don't understand this function at all! */
+    /* https://stackoverflow.com/questions/11716268/point-in-polygon-algorithm */
+    int c = 0;
+    size_t i = 0;
+    size_t j = polsz - 1;
+    for (; i < polsz; j = i ++) {
+        if( ( (pol[i*2+1] >= p[1] ) != (pol[j*2+1] >= p[1]) ) &&
+            (p[0] <= (pol[j*2+0] - pol[i*2+0]) * (p[1] - pol[i*2+1]) / (pol[j*2+1] - pol[i*2+1]) + pol[i*2+0])
+          ) {
+            c = !c;
+        }
+    }
+  return c;
+}
+
+static void
+swizzle(size_t i, int *rgb)
+{
+    /*
+     * Very wonky RGB construction from the lower 12 bits of index
+     */
+    float r = (((unsigned)i & (1<< 0))>> 0) +
+              (((unsigned)i & (1<< 3))>> 3) +
+              (((unsigned)i & (1<< 6))>> 6) +
+              (((unsigned)i & (1<< 9))>> 9);
+
+    float g = (((unsigned)i & (1<< 1))>> 1) +
+              (((unsigned)i & (1<< 4))>> 4) +
+              (((unsigned)i & (1<< 7))>> 7) +
+              (((unsigned)i & (1<<10))>>10);
+
+    float b = (((unsigned)i & (1<< 2))>> 2) +
+              (((unsigned)i & (1<< 5))>> 5) +
+              (((unsigned)i & (1<< 8))>> 8) +
+              (((unsigned)i & (1<<11))>>11);
+    rgb[0] = (int)lroundf(255 * r / 4);
+    rgb[1] = (int)lroundf(255 * g / 4);
+    rgb[2] = (int)lroundf(255 * b / 4);
 }
 
 static void
@@ -181,6 +258,39 @@ putline(int *rgb, unsigned width, unsigned height, int r, int g, int b,
         e2 = 2 * de;
         if (e2 >= dy) { de += dy; x0 += sx; }
         if (e2 <= dx) { de += dx; y0 += sy; }
+    }
+}
+
+static void
+puttri(void *xrgb, size_t t, const float * restrict a,
+                             const float * restrict b,
+                             const float * restrict c)
+{
+    int *rgb = xrgb;
+    /* This could not be any lazier */
+    for (size_t h = 0; h < height; ++ h)
+    for (size_t w = 0; w < width; ++ w) {
+        size_t i = 3 * (h * width + w);
+        float p[2] = { w, h };
+        if (pt_in_tri(p, a, b, c)) {
+            swizzle(t, rgb + i);
+        }
+    }
+}
+
+
+static void
+putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt)
+{
+    int *rgb = xrgb;
+    /* This could not be any lazier */
+    for (size_t h = 0; h < height; ++ h)
+    for (size_t w = 0; w < width; ++ w) {
+        size_t i = 3 * (h * width + w);
+        float p[2] = { w, h };
+        if (pt_in_pol(p, pt, npt)) {
+            swizzle(c, rgb + i);
+        }
     }
 }
 

@@ -26,11 +26,6 @@ static tid addtri(vid *triverts, size_t *ntrivert, tid *halfedge,
 static int ccw(float, float, float, float, float, float);
 
 /*
- * Stores the center of the circumcircle of three points in c.
- */
-static void circc(float, float, float, float, float, float, float *c);
-
-/*
  * Returns the circumradius between three points, or FLT_MAX if points
  * are colinear.
  */
@@ -137,9 +132,9 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
     }
 
     float c[2];
-    circc(pt[s[0]*2], pt[s[0]*2+1],
-          pt[s[1]*2], pt[s[1]*2+1],
-          pt[s[2]*2], pt[s[2]*2+1], c);
+    circumcenter(pt[s[0]*2], pt[s[0]*2+1],
+                 pt[s[1]*2], pt[s[1]*2+1],
+                 pt[s[2]*2], pt[s[2]*2+1], c);
 
     for (size_t i = 0; i < npt; ++ i) {
         pds[i] = (struct pointdist) {
@@ -273,17 +268,6 @@ free_buffers:
 #undef ADDTRI
 }
 
-void
-triangle_center(vid *triverts, float *pt, size_t t, float *q)
-{
-    size_t te[3];
-    triangle_edges(t, te);
-    vid tp[3] = { triverts[te[0]], triverts[te[1]], triverts[te[2]] };
-    circc(pt[tp[0]*2],pt[tp[0]*2+1],
-          pt[tp[1]*2],pt[tp[1]*2+1],
-          pt[tp[2]*2],pt[tp[2]*2+1], q);
-}
-
 static int
 seed(float *pt, size_t npt, vid *s)
 {
@@ -382,22 +366,6 @@ static inline int
 ccw(float ax, float ay, float bx, float by, float cx, float cy)
 {
     return (by - ay) * (cx - bx) - (bx - ax) * (cy - by) >= 0;
-}
-
-static inline void
-circc(float ax, float ay, float bx, float by, float cx, float cy, float *c)
-{
-    float dx = bx - ax;
-    float dy = by - ay;
-    float ex = cx - ax;
-    float ey = cy - ay;
-
-    float bl = dx * dx + dy * dy;
-    float cl = ex * ex + ey * ey;
-    float d  = 0.5f / (dx * ey - dy * ex);
-
-    c[0] = ax + (ey * bl - dy * cl) * d;
-    c[1] = ay + (dx * cl - ex * bl) * d;
 }
 
 static inline float
