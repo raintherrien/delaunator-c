@@ -25,6 +25,9 @@ if(DELC_BUILD_SAN)
     target_link_options   (delaunator-c PUBLIC -fsanitize=address,leak,undefined,pointer-compare,pointer-subtract -fstack-protector)
 endif()
 
+export(TARGETS delaunator-c FILE delaunator-c-config.cmake)
+export(PACKAGE delaunator-c)
+
 option(DELC_BUILD_EXAMPLES "Build example programs" OFF)
 if(DELC_BUILD_EXAMPLES)
   add_subdirectory(${PROJECT_SOURCE_DIR}/examples/bench)
