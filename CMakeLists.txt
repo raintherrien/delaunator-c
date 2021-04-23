@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD          99)
 set(CMAKE_C_STANDARD_REQUIRED OFF)
 set(CMAKE_C_EXTENSIONS        OFF)
 
+include(GNUInstallDirs)
+
 # Try to compile release
 set(DEFAULT_BUILD_TYPE "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -21,17 +23,17 @@ target_include_directories(delaunay PUBLIC
                            $<INSTALL_INTERFACE:include>)
 
 install(TARGETS delaunay
-        EXPORT delaunay-config
-		LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
-		RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
-		PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-install(FILES ${PROJECT_SOURCE_DIR}/include/delaunay/delaunay.h
-              ${PROJECT_SOURCE_DIR}/include/delaunay/helper.h
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/include/delaunay)
-install(EXPORT delaunay-config
+        EXPORT delaunay
+        LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(DIRECTORY ${PROJECT_SOURCE_DIR}/include/delaunay
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+install(EXPORT delaunay
         FILE delaunay-config.cmake
-		DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/delaunay)
+        NAMESPACE delaunay::
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/delaunay)
 
 option(DELC_BUILD_SAN "Build with sanitizers" OFF)
 if(DELC_BUILD_SAN)
