@@ -1,4 +1,4 @@
-#include "delaunay/delaunator.h"
+#include "delaunay/delaunay.h"
 #include "delaunay/helper.h"
 
 #include <assert.h>
@@ -89,7 +89,7 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
         return errno;
     }
 
-    /* Define pointers into buffer; see delaunator.h for layout */
+    /* Define pointers into buffer; see delaunay.h for layout */
     tid    *halfedge = DELAUNAY_HALFEDGE(delaunay, npt);
     vid    *hullhash = DELAUNAY_HULLHASH(delaunay, npt);
     vid    *hullnext = DELAUNAY_HULLNEXT(delaunay, npt);

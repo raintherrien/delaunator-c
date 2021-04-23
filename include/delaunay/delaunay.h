@@ -8,8 +8,8 @@
  * See accompanying LICENSE
  */
 
-#ifndef DELAUNAY_DELAUNATOR_H_
-#define DELAUNAY_DELAUNATOR_H_
+#ifndef DELAUNAY_DELAUNAY_H_
+#define DELAUNAY_DELAUNAY_H_
 
 #include <stddef.h>
 
@@ -51,5 +51,5 @@
 
 int triangulate(size_t *delaunay, float *pt, size_t npt);
 
-#endif /* DELAUNAY_DELAUNATOR_H_ */
+#endif /* DELAUNAY_DELAUNAY_H_ */
 
