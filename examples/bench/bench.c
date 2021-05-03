@@ -9,7 +9,7 @@
  * I'm not interested at all in double precision. :)
  */
 
-#include "delaunay/delaunator.h"
+#include "delaunay/delaunay.h"
 #include <assert.h>
 #include <errno.h>
 #include <math.h>

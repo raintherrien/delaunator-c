@@ -5,6 +5,6 @@ project(bench VERSION 1 LANGUAGES C)
 if(UNIX)
     add_executable(bench ${PROJECT_SOURCE_DIR}/bench.c)
     target_compile_definitions(bench PRIVATE _XOPEN_SOURCE=700) # nanosleep
-    target_link_libraries(bench delaunator-c m)
+    target_link_libraries(bench delaunay m)
 endif()
 

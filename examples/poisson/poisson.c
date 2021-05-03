@@ -3,7 +3,7 @@
  * distributed points.
  */
 
-#include "delaunay/delaunator.h"
+#include "delaunay/delaunay.h"
 #include "delaunay/helper.h"
 #include <assert.h>
 #include <errno.h>
