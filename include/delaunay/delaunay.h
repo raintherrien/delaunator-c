@@ -11,7 +11,7 @@
 #ifndef DELAUNAY_DELAUNAY_H_
 #define DELAUNAY_DELAUNAY_H_
 
-#include <stddef.h>
+#include <stdint.h>
 
 /*
  * triangulate() calculates the delaunay triangulation of points (pt).
@@ -27,17 +27,17 @@
  * buffers (See TODO below).
  *
  * delaunay array layout depends on point count:
- *   size_t halfedge[npt * 6]; // Edge to adjacent triangle
- *   size_t hullhash[npt];     // Hull verts in order of pseudo-angle
- *   size_t hullnext[npt];     // Edge to next edge
- *   size_t hullprev[npt];     // Edge to prev edge
- *   size_t hulltris[npt];     // Edge to adjacent triangle
- *   size_t triverts[npt * 6]; // Triangle vertices
- *   size_t ntrivert;
- *   size_t hullsize;
- *   size_t hullstrt;
+ *   uint32_t halfedge[npt * 6]; // Edge to adjacent triangle
+ *   uint32_t hullhash[npt];     // Hull verts in order of pseudo-angle
+ *   uint32_t hullnext[npt];     // Edge to next edge
+ *   uint32_t hullprev[npt];     // Edge to prev edge
+ *   uint32_t hulltris[npt];     // Edge to adjacent triangle
+ *   uint32_t triverts[npt * 6]; // Triangle vertices
+ *   uint32_t ntrivert;
+ *   uint32_t hullsize;
+ *   uint32_t hullstrt;
  * helper.h defines macros to retrieve these pointers.
- * Total size: sizeof(size_t) * (npt * 16 + 3)
+ * Total size: sizeof(uint32_t) * (npt * 16 + 3)
  *
  * Use the DELAUNAY_SZ macro to allocate this array.
  *
@@ -49,7 +49,7 @@
 
 #define DELAUNAY_SZ(NPT) ((NPT) * 16 + 3)
 
-int triangulate(size_t *delaunay, float *pt, size_t npt);
+int triangulate(uint32_t *delaunay, float *pt, uint32_t npt);
 
 #endif /* DELAUNAY_DELAUNAY_H_ */
 

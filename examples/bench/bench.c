@@ -25,10 +25,10 @@ static inline float frand(void);
 static inline float pseudoNormal(void);
 
 /* Domain generating functions, all populate pt with npt points */
-static inline void degenerate(float *pt, size_t npt);
-static inline void gaussian(float *pt, size_t npt);
-static inline void grid(float *pt, size_t npt);
-static inline void uniform(float *pt, size_t npt);
+static inline void degenerate(float *pt, uint32_t npt);
+static inline void gaussian(float *pt, uint32_t npt);
+static inline void grid(float *pt, uint32_t npt);
+static inline void uniform(float *pt, uint32_t npt);
 
 int
 main(void)
@@ -36,9 +36,9 @@ main(void)
     /* Seed our random number generator */
     srand((unsigned)time(NULL));
 
-    size_t npt = 100000;
+    uint32_t npt = 100000;
     float  *pt  = calloc(2 * npt, sizeof *pt);
-    size_t *del = calloc(DELAUNAY_SZ(npt), sizeof *del);
+    uint32_t *del = calloc(DELAUNAY_SZ(npt), sizeof *del);
     if (pt == NULL || del == NULL) {
         perror("Error allocating point buffer");
         return EXIT_FAILURE;
@@ -97,11 +97,11 @@ pseudoNormal(void)
 }
 
 static inline void
-degenerate(float *pt, size_t npt)
+degenerate(float *pt, uint32_t npt)
 {
     pt[0] = 0;
     pt[1] = 0;
-    for (size_t i = 1; i < npt; ++ i) {
+    for (uint32_t i = 1; i < npt; ++ i) {
         float angle = 2.0f * DELC_PI * (float)i / (float)npt;
         pt[i*2+0] = 1e10 * sinf(angle);
         pt[i*2+1] = 1e10 * cosf(angle);
@@ -109,35 +109,35 @@ degenerate(float *pt, size_t npt)
 }
 
 static inline void
-gaussian(float *pt, size_t npt)
+gaussian(float *pt, uint32_t npt)
 {
-    for (size_t i = 0; i < npt; ++ i) {
+    for (uint32_t i = 0; i < npt; ++ i) {
         pt[i*2+0] = pseudoNormal() * 1e3;
         pt[i*2+1] = pseudoNormal() * 1e3;
     }
 }
 
 static inline void
-grid(float *pt, size_t npt)
+grid(float *pt, uint32_t npt)
 {
-    size_t size = llroundf(floorf(sqrtf(npt)));
-    for (size_t y = 0; y < size; ++ y)
-    for (size_t x = 0; x < size; ++ x) {
-        size_t i = y * size + x;
+    uint32_t size = llroundf(floorf(sqrtf(npt)));
+    for (uint32_t y = 0; y < size; ++ y)
+    for (uint32_t x = 0; x < size; ++ x) {
+        uint32_t i = y * size + x;
         pt[i*2+0] = x;
         pt[i*2+1] = y;
     }
     /* Don't leave uninitialized if unsquare */
-    for (size_t i = size*size; i < npt; ++ i) {
+    for (uint32_t i = size*size; i < npt; ++ i) {
         pt[i*2+0] = i;
         pt[i*2+1] = i;
     }
 }
 
 static inline void
-uniform(float *pt, size_t npt)
+uniform(float *pt, uint32_t npt)
 {
-    for (size_t i = 0; i < npt; ++ i) {
+    for (uint32_t i = 0; i < npt; ++ i) {
         pt[i*2+0] = frand() * 1e3;
         pt[i*2+1] = frand() * 1e3;
     }

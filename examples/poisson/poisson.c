@@ -41,12 +41,12 @@ pt_in_tri(const float * restrict p,
 static int
 pt_in_pol(const float * restrict p,
           const float * restrict pol,
-          size_t                 polsz);
+          uint32_t               polsz);
 
 /*
- * Calculates an RGB value from the first 12 bits of a size_t index.
+ * Calculates an RGB value from the first 12 bits of a uint32_t index.
  */
-static void swizzle(size_t i, int *rgb);
+static void swizzle(uint32_t i, int *rgb);
 
 /*
  * Rasterizes a two dimensional line, uses Bresenham's line algorithm.
@@ -58,14 +58,14 @@ static void putline(int *rgb, unsigned width, unsigned height,
 /*
  * Rasterizes a triangle, suitable callback for foreach_tri()
  */
-static void puttri(void *xrgb, size_t t, const float * restrict a,
-                                         const float * restrict b,
-                                         const float * restrict c);
+static void puttri(void *xrgb, uint32_t t, const float * restrict a,
+                                           const float * restrict b,
+                                           const float * restrict c);
 
 /*
  * Rasterizes a voronoi cell, suitable callback for foreach_cell_dup()
  */
-static void putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt);
+static void putcell(void *xrgb, uint32_t c, const float * restrict pt, uint32_t npt);
 
 /*
  * Returns an array of two dimensional points pt (and length npt)
@@ -80,7 +80,7 @@ static void putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt)
  * This implementation makes heap allocations and is non-deterministic.
  * Neither great qualities for serious applications.
  */
-static int poisson(float **pt, size_t *ptsz, float r, float w, float h);
+static int poisson(float **pt, uint32_t *ptsz, float r, float w, float h);
 
 int
 main(int argc, char **argv)
@@ -96,21 +96,21 @@ main(int argc, char **argv)
 
     /* Construct the Poisson distribution */
     float *pt = NULL;
-    size_t ptsz = 0;
+    uint32_t ptsz = 0;
     if (poisson(&pt, &ptsz, radius, width, height) != 0) {
         perror("Error creating Poisson distribution");
         return EXIT_FAILURE;
     }
 
     /* Triangulate the distribution */
-    size_t *del = calloc(DELAUNAY_SZ(ptsz), sizeof *del);
+    uint32_t *del = calloc(DELAUNAY_SZ(ptsz), sizeof *del);
     if (del == NULL || triangulate(del, pt, ptsz) != 0) {
         perror("Error triangulating Poisson distribution");
         goto error_triangulating;
     }
-    size_t *halfedge =  DELAUNAY_HALFEDGE(del, ptsz);
-    size_t *triverts =  DELAUNAY_TRIVERTS(del, ptsz);
-    size_t  ntrivert = *DELAUNAY_NTRIVERT(del, ptsz);
+    uint32_t *halfedge =  DELAUNAY_HALFEDGE(del, ptsz);
+    uint32_t *triverts =  DELAUNAY_TRIVERTS(del, ptsz);
+    uint32_t  ntrivert = *DELAUNAY_NTRIVERT(del, ptsz);
 
     /* Allocate an RGB buffer to draw our magic into */
     int *rgb = calloc(3 * width * height, sizeof *rgb);
@@ -125,24 +125,11 @@ main(int argc, char **argv)
         foreach_cell_dup(del, pt, ptsz, putcell, rgb);
     }
 
-    /* Draw points in white */
-    for (size_t i = 0; i < ptsz&&0; ++ i) {
-        float *p = pt + i*2;
-        long x = lroundf(p[0]);
-        long y = lroundf(p[1]);
-        if (x >= 0 && x < width && y >= 0 && y < height) {
-            int *c = rgb + 3*(y * width + x);
-            c[0] = 255;
-            c[1] = 255;
-            c[2] = 255;
-        }
-    }
-
     /* Print a PPM image file to stdout */
     if (printf("P6 %d %d 255 ", width, height) < 0) goto printf_error;
     for (int y = height; y --; )
     for (int x = width;  x --; ) {
-        size_t i = 3 * (y * width + x);
+        uint32_t i = 3 * (y * width + x);
         int r = rgb[i+0];
         int g = rgb[i+1];
         int b = rgb[i+2];
@@ -194,13 +181,13 @@ pt_in_tri(const float * restrict p,
 static int
 pt_in_pol(const float * restrict p,
           const float * restrict pol,
-          size_t                 polsz)
+          uint32_t               polsz)
 {
     /* I don't understand this function at all! */
     /* https://stackoverflow.com/questions/11716268/point-in-polygon-algorithm */
     int c = 0;
-    size_t i = 0;
-    size_t j = polsz - 1;
+    uint32_t i = 0;
+    uint32_t j = polsz - 1;
     for (; i < polsz; j = i ++) {
         if( ( (pol[i*2+1] >= p[1] ) != (pol[j*2+1] >= p[1]) ) &&
             (p[0] <= (pol[j*2+0] - pol[i*2+0]) * (p[1] - pol[i*2+1]) / (pol[j*2+1] - pol[i*2+1]) + pol[i*2+0])
@@ -212,7 +199,7 @@ pt_in_pol(const float * restrict p,
 }
 
 static void
-swizzle(size_t i, int *rgb)
+swizzle(uint32_t i, int *rgb)
 {
     /*
      * Very wonky RGB construction from the lower 12 bits of index
@@ -249,7 +236,7 @@ putline(int *rgb, unsigned width, unsigned height, int r, int g, int b,
 
     for(;;) {
         if (x0 >= 0 && x0 < width && y0 >= 0 && y0 < height) {
-            size_t i = 3 * (y0 * width + x0);
+            uint32_t i = 3 * (y0 * width + x0);
             rgb[i+0] = r;
             rgb[i+1] = g;
             rgb[i+2] = b;
@@ -262,15 +249,15 @@ putline(int *rgb, unsigned width, unsigned height, int r, int g, int b,
 }
 
 static void
-puttri(void *xrgb, size_t t, const float * restrict a,
-                             const float * restrict b,
-                             const float * restrict c)
+puttri(void *xrgb, uint32_t t, const float * restrict a,
+                               const float * restrict b,
+                               const float * restrict c)
 {
     int *rgb = xrgb;
     /* This could not be any lazier */
-    for (size_t h = 0; h < height; ++ h)
-    for (size_t w = 0; w < width; ++ w) {
-        size_t i = 3 * (h * width + w);
+    for (uint32_t h = 0; h < height; ++ h)
+    for (uint32_t w = 0; w < width; ++ w) {
+        uint32_t i = 3 * (h * width + w);
         float p[2] = { w, h };
         if (pt_in_tri(p, a, b, c)) {
             swizzle(t, rgb + i);
@@ -280,13 +267,13 @@ puttri(void *xrgb, size_t t, const float * restrict a,
 
 
 static void
-putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt)
+putcell(void *xrgb, uint32_t c, const float * restrict pt, uint32_t npt)
 {
     int *rgb = xrgb;
     /* This could not be any lazier */
-    for (size_t h = 0; h < height; ++ h)
-    for (size_t w = 0; w < width; ++ w) {
-        size_t i = 3 * (h * width + w);
+    for (uint32_t h = 0; h < height; ++ h)
+    for (uint32_t w = 0; w < width; ++ w) {
+        uint32_t i = 3 * (h * width + w);
         float p[2] = { w, h };
         if (pt_in_pol(p, pt, npt)) {
             swizzle(c, rgb + i);
@@ -295,7 +282,7 @@ putcell(void *xrgb, size_t c, const float * restrict pt, size_t npt)
 }
 
 static int
-poisson(float **pt, size_t *ptsz, float r, float w, float h)
+poisson(float **pt, uint32_t *ptsz, float r, float w, float h)
 {
     /*
      * Backing grid to accelerate spacial searches stores the index into
@@ -309,23 +296,23 @@ poisson(float **pt, size_t *ptsz, float r, float w, float h)
     long gh = lroundf(ceilf(h / cl));
 
     /* Buffer for points, with reasonable maximum count of area */
-    size_t mxnpt = gw * gh;
+    uint32_t mxnpt = gw * gh;
     *pt = malloc(2 * mxnpt * sizeof **pt);
-    size_t npt = 0;
+    uint32_t npt = 0;
 
     /* Index into pt, queried with grid coordinate */
-    size_t *lookup = malloc(gw * gh * sizeof *lookup);
+    uint32_t *lookup = malloc(gw * gh * sizeof *lookup);
 
     /* Active list of points that have not yet spawned children */
-    size_t *active = malloc(gw * gh * sizeof *active);
-    size_t nactive = 0;
+    uint32_t *active = malloc(gw * gh * sizeof *active);
+    uint32_t nactive = 0;
 
     if (!*pt || !lookup || !active) {
         perror("Error allocating buffers");
         goto free_buffers;
     }
 
-    /* Assign initial values to SIZE_MAX, which means no point */
+    /* Assign initial values to UINT32_MAX, which means no point */
     memset(lookup, 0xFF, gw * gh * sizeof *lookup);
 
     /* Prime with one random point */
@@ -346,8 +333,8 @@ poisson(float **pt, size_t *ptsz, float r, float w, float h)
         float *parent = (*pt) + 2*active[-- nactive];
 
         /* Maximum attempts made to spawn a child point */
-        size_t max_child_samples = 30;
-        for (size_t i = 0; i < max_child_samples && npt < mxnpt; ++ i) {
+        uint32_t max_child_samples = 30;
+        for (uint32_t i = 0; i < max_child_samples && npt < mxnpt; ++ i) {
             /* Calculate a new point between radius and 2*radius */
             float dist = r * (1 + frand());
             float angle = DELC_PI * 2.0f * frand();
@@ -366,8 +353,8 @@ poisson(float **pt, size_t *ptsz, float r, float w, float h)
             /* TODO: Doesn't need to check corner neighbors */
             for (int ny = -2; ny <= 2 && !intersect; ++ ny)
             for (int nx = -2; nx <= 2 && !intersect; ++ nx) {
-                size_t ni = lookup[gridi + nx + ny * gw];
-                if (ni == SIZE_MAX) continue;
+                uint32_t ni = lookup[gridi + nx + ny * gw];
+                if (ni == UINT32_MAX) continue;
                 float *n = (*pt) + 2*ni;
                 intersect = hypotf(childx - n[0], childy - n[1]) < r;
             }

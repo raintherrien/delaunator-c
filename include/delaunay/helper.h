@@ -22,7 +22,7 @@
 #define DELAUNAY_HULLSIZE(D,NPT) ((D) + (NPT) * 16 + 1)
 #define DELAUNAY_HULLSTRT(D,NPT) ((D) + (NPT) * 16 + 2)
 /* Max number of points before overflow */
-#define DELAUNAY_MAXNPT          ((SIZE_MAX - 3) / 16 / sizeof(size_t))
+#define DELAUNAY_MAXNPT          ((UINT32_MAX - 3) / 16 / sizeof(uint32_t))
 
 static inline void
 circumcenter(float ax, float ay, float bx, float by, float cx, float cy, float *c)
@@ -51,7 +51,7 @@ circumcenter(float ax, float ay, float bx, float by, float cx, float cy, float *
  * half-edges of triangle t are 3*t, 3*t+1, and 3*t+2.
  */
 static inline void
-tri_edges(size_t t, size_t edges[3])
+tri_edges(uint32_t t, uint32_t edges[3])
 {
     edges[0] = 3 * t;
     edges[1] = 3 * t + 1;
@@ -62,8 +62,8 @@ tri_edges(size_t t, size_t edges[3])
  * tri_of_edges() returns the triangle id of the half-edge e. The
  * triangle of half-edge e is floor(e/3).
  */
-static inline size_t
-tri_of_edge(size_t e)
+static inline uint32_t
+tri_of_edge(uint32_t e)
 {
     return e / 3;
 }
@@ -72,23 +72,23 @@ tri_of_edge(size_t e)
  * tri_next_edge() and tri_prev_edge() return the next or previous edge
  * in a triangle.
  */
-static inline size_t
-tri_next_edge(size_t e)
+static inline uint32_t
+tri_next_edge(uint32_t e)
 {
     return (e % 3 == 2) ? e - 2 : e + 1;
 }
-static inline size_t
-tri_prev_edge(size_t e)
+static inline uint32_t
+tri_prev_edge(uint32_t e)
 {
     return (e % 3 == 0) ? e + 2 : e - 1;
 }
 
 static inline void
-tri_center(size_t *triverts, const float * restrict pt, size_t t, float *q)
+tri_center(uint32_t *triverts, const float * restrict pt, uint32_t t, float *q)
 {
-    size_t te[3];
+    uint32_t te[3];
     tri_edges(t, te);
-    size_t tp[3] = { triverts[te[0]], triverts[te[1]], triverts[te[2]] };
+    uint32_t tp[3] = { triverts[te[0]], triverts[te[1]], triverts[te[2]] };
     circumcenter(pt[tp[0]*2],pt[tp[0]*2+1],
                  pt[tp[1]*2],pt[tp[1]*2+1],
                  pt[tp[2]*2],pt[tp[2]*2+1], q);
@@ -106,16 +106,16 @@ tri_center(size_t *triverts, const float * restrict pt, size_t t, float *q)
  * cell has too many hull vertices!
  */
 static inline void
-foreach_tri(size_t *delaunay, const float *pt, size_t npt,
-            void(*fn)(void *, size_t t, const float * restrict a,
-                                        const float * restrict b,
-                                        const float * restrict c),
+foreach_tri(uint32_t *delaunay, const float *pt, uint32_t npt,
+            void(*fn)(void *, uint32_t t, const float * restrict a,
+                                          const float * restrict b,
+                                          const float * restrict c),
             void *arg)
 {
-    size_t *triverts =  DELAUNAY_TRIVERTS(delaunay, npt);
-    size_t ntris     = *DELAUNAY_NTRIVERT(delaunay, npt) / 3;
-    size_t e[3];
-    for (size_t t = 0; t < ntris; ++ t) {
+    uint32_t *triverts =  DELAUNAY_TRIVERTS(delaunay, npt);
+    uint32_t ntris     = *DELAUNAY_NTRIVERT(delaunay, npt) / 3;
+    uint32_t e[3];
+    for (uint32_t t = 0; t < ntris; ++ t) {
         tri_edges(t, e);
         fn(arg, t, pt+2*triverts[e[0]],
                    pt+2*triverts[e[1]],
@@ -124,20 +124,20 @@ foreach_tri(size_t *delaunay, const float *pt, size_t npt,
 }
 
 static inline void
-foreach_cell_dup(size_t *delaunay, const float *pt, size_t npt,
-                 void(*fn)(void *, size_t c, const float * restrict pt, size_t npt),
+foreach_cell_dup(uint32_t *delaunay, const float *pt, uint32_t npt,
+                 void(*fn)(void *, uint32_t c, const float * restrict pt, uint32_t npt),
                  void *arg)
 {
-    size_t *halfedge =  DELAUNAY_HALFEDGE(delaunay, npt);
-    size_t *triverts =  DELAUNAY_TRIVERTS(delaunay, npt);
-    size_t ntriverts = *DELAUNAY_NTRIVERT(delaunay, npt);
-    for (size_t incoming = 0; incoming < ntriverts; ++ incoming) {
-        size_t endpoint = triverts[tri_next_edge(incoming)];
+    uint32_t *halfedge =  DELAUNAY_HALFEDGE(delaunay, npt);
+    uint32_t *triverts =  DELAUNAY_TRIVERTS(delaunay, npt);
+    uint32_t ntriverts = *DELAUNAY_NTRIVERT(delaunay, npt);
+    for (uint32_t incoming = 0; incoming < ntriverts; ++ incoming) {
+        uint32_t endpoint = triverts[tri_next_edge(incoming)];
         if (halfedge[endpoint] == -1) continue;
 
         /* Count the number of Voronoi cell vertices */
-        size_t cell_npt = 0;
-        size_t current = incoming;
+        uint32_t cell_npt = 0;
+        uint32_t current = incoming;
         do {
             ++ cell_npt;
             current = halfedge[tri_next_edge(current)];
@@ -147,7 +147,7 @@ foreach_cell_dup(size_t *delaunay, const float *pt, size_t npt,
         /* XXX stack overflow right here :) */
         float cell_pt[cell_npt * 2];
         current = incoming;
-        for (size_t i = 0; i < cell_npt; ++ i) {
+        for (uint32_t i = 0; i < cell_npt; ++ i) {
             tri_center(triverts, pt, tri_of_edge(current), cell_pt+i*2);
             current = halfedge[tri_next_edge(current)];
         }

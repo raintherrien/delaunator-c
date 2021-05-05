@@ -1,3 +1,13 @@
+/*
+ * Fast 2D Delaunay triangulation in C. Yet another port of Delaunator.
+ * https://github.com/mapbox/delaunator
+ *
+ * Copyright (c) 2017, Mapbox
+ * Copyright (c) 2021, Rain Therrien
+ * Distributed under the ISC license.
+ * See accompanying LICENSE
+ */
+
 #include "delaunay/delaunay.h"
 #include "delaunay/helper.h"
 
@@ -5,19 +15,18 @@
 #include <errno.h>
 #include <float.h>
 #include <math.h>
-#include <stddef.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
 
 /* Internal aliases for some type clarity */
-typedef size_t vid;
-typedef size_t tid;
+typedef uint32_t vid;
+typedef uint32_t tid;
 
 /*
  * Creates a new triangle from three verts and links to neighbors
  */
-static tid addtri(vid *triverts, size_t *ntrivert, tid *halfedge,
+static tid addtri(vid *triverts, uint32_t *ntrivert, tid *halfedge,
                   vid v0, vid v1, vid v2, tid t0, tid t1, tid t2);
 
 /*
@@ -35,7 +44,7 @@ static float circr(float, float, float, float, float, float);
  * Returns a pseudo-angle between two points which monotonically
  * increases with real angle but doesn't need expensive trigonometry.
  */
-static size_t hashk(float, float, float, float, size_t mask);
+static uint32_t hashk(float, float, float, float, uint32_t mask);
 
 /*
  * Returns whether the point p is within the circumcircle formed by the
@@ -52,8 +61,8 @@ static int incircc(float ax, float ay, float bx, float by,
  * recursion, the size of which must be at least npt.
  */
 static tid legalize(tid *halfedge, vid *hullprev, tid *hulltris,
-                    vid *triverts, size_t *hullstrt,
-                    float *pt, size_t npt, tid t, tid *stack);
+                    vid *triverts, uint32_t *hullstrt,
+                    float *pt, uint32_t npt, tid t, tid *stack);
 
 /*
  * Links two triangles with half edges
@@ -67,7 +76,7 @@ static void link(tid *halfedge, tid, tid);
  * If all points are colinear errno is set to EINVAL, which is returned,
  * and s is undefined.
  */
-static int seed(float *pt, size_t npt, vid *s);
+static int seed(float *pt, uint32_t npt, vid *s);
 
 /*
  * Structure and comparator of a (index, distance) tuple used to order
@@ -77,7 +86,7 @@ struct pointdist { vid i; float d; };
 static int pointdistcmp(const void *xa, const void *xb);
 
 int
-triangulate(size_t *delaunay, float *pt, size_t npt)
+triangulate(uint32_t *delaunay, float *pt, uint32_t npt)
 {
     if (npt < 3) {
         errno = ERANGE;
@@ -90,15 +99,15 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
     }
 
     /* Define pointers into buffer; see delaunay.h for layout */
-    tid    *halfedge = DELAUNAY_HALFEDGE(delaunay, npt);
-    vid    *hullhash = DELAUNAY_HULLHASH(delaunay, npt);
-    vid    *hullnext = DELAUNAY_HULLNEXT(delaunay, npt);
-    vid    *hullprev = DELAUNAY_HULLPREV(delaunay, npt);
-    tid    *hulltris = DELAUNAY_HULLTRIS(delaunay, npt);
-    vid    *triverts = DELAUNAY_TRIVERTS(delaunay, npt);
-    size_t *ntrivert = DELAUNAY_NTRIVERT(delaunay, npt);
-    size_t *hullsize = DELAUNAY_HULLSIZE(delaunay, npt);
-    size_t *hullstrt = DELAUNAY_HULLSTRT(delaunay, npt);
+    tid      *halfedge = DELAUNAY_HALFEDGE(delaunay, npt);
+    vid      *hullhash = DELAUNAY_HULLHASH(delaunay, npt);
+    vid      *hullnext = DELAUNAY_HULLNEXT(delaunay, npt);
+    vid      *hullprev = DELAUNAY_HULLPREV(delaunay, npt);
+    tid      *hulltris = DELAUNAY_HULLTRIS(delaunay, npt);
+    vid      *triverts = DELAUNAY_TRIVERTS(delaunay, npt);
+    uint32_t *ntrivert = DELAUNAY_NTRIVERT(delaunay, npt);
+    uint32_t *hullsize = DELAUNAY_HULLSIZE(delaunay, npt);
+    uint32_t *hullstrt = DELAUNAY_HULLSTRT(delaunay, npt);
 
     /*
      * Array of point indices to sort by distance from seed and a fixed
@@ -122,7 +131,8 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
 #define LEGALIZE(T) legalize(halfedge, hullprev, hulltris, triverts, \
                              hullstrt, pt, npt, T, stack);
 
-    /* Assign initial values to SIZE_MAX, which means no vert/tri */
+    /* Assign initial values to UINT32_MAX, which means no vert/tri */
+    _Static_assert((uint32_t)-1 == (uint32_t)~0, "Assumes two's complement");
     memset(delaunay, 0xFF, DELAUNAY_SZ(npt) * sizeof *delaunay);
 
     /* Find seed */
@@ -136,7 +146,7 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
                  pt[s[1]*2], pt[s[1]*2+1],
                  pt[s[2]*2], pt[s[2]*2+1], c);
 
-    for (size_t i = 0; i < npt; ++ i) {
+    for (uint32_t i = 0; i < npt; ++ i) {
         pds[i] = (struct pointdist) {
             .i = i,
             .d = hypotf(pt[i*2]-c[0], pt[i*2+1]-c[1])
@@ -147,7 +157,7 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
     qsort(pds, npt, sizeof *pds, pointdistcmp);
 
     /* Create the initial hull around seed triangle */
-    size_t hashsz = llroundf(ceilf(sqrtf(npt)));
+    uint32_t hashsz = llroundf(ceilf(sqrtf(npt)));
     *hullstrt = s[0];
     *hullsize = 3;
     hullnext[s[0]] = hullprev[s[2]] = s[1];
@@ -161,10 +171,10 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
     hullhash[hashk(c[0],c[1], pt[s[2]*2],pt[s[2]*2+1], hashsz)] = s[2];
     *ntrivert = 0;
     assert(*ntrivert + 3 < npt * 6);
-    ADDTRI(s[0], s[1], s[2], SIZE_MAX, SIZE_MAX, SIZE_MAX);
+    ADDTRI(s[0], s[1], s[2], UINT32_MAX, UINT32_MAX, UINT32_MAX);
 
     float p[2] = { FLT_MAX };
-    for (size_t idx = 0; idx < npt; ++ idx) {
+    for (uint32_t idx = 0; idx < npt; ++ idx) {
         vid i = pds[idx].i;
         float *v = pt + i*2;
 
@@ -184,10 +194,10 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
 
         /* Find a visible edge on the convex hull using edge hash */
         vid start = 0;
-        size_t key = hashk(c[0],c[1], v[0],v[1], hashsz);
-        for (size_t j = 0; j < hashsz; ++ j) {
+        uint32_t key = hashk(c[0],c[1], v[0],v[1], hashsz);
+        for (uint32_t j = 0; j < hashsz; ++ j) {
             start = hullhash[(key + j) % hashsz];
-            if (start != SIZE_MAX && start != hullnext[start]) {
+            if (start != UINT32_MAX && start != hullnext[start]) {
                 break;
             }
         }
@@ -197,17 +207,17 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
         while (ccw(v[0],v[1], pt[e*2],pt[e*2+1], pt[q*2],pt[q*2+1])) {
             e = q;
             if (e == start) {
-                e = SIZE_MAX;
+                e = UINT32_MAX;
                 break;
             }
             q = hullnext[e];
         }
         /* Likely a near-duplicate point; skip it */
-        if (e == SIZE_MAX) continue;
+        if (e == UINT32_MAX) continue;
 
         /* Add the first triangle from the point */
         assert(*ntrivert + 3 < npt * 6);
-        tid t = ADDTRI(e, i, hullnext[e], SIZE_MAX, SIZE_MAX, hulltris[e]);
+        tid t = ADDTRI(e, i, hullnext[e], UINT32_MAX, UINT32_MAX, hulltris[e]);
         /* Flip triangles until they satisfy the Delaunay condition */
         hulltris[i] = LEGALIZE(t + 2);
         hulltris[e] = t; /* Keep track of boundary (hull) triangles */
@@ -218,7 +228,7 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
         q = hullnext[n];
         while (!ccw(v[0],v[1], pt[n*2],pt[n*2+1], pt[q*2],pt[q*2+1])) {
             assert(*ntrivert + 3 < npt * 6);
-            t = ADDTRI(n, i, q, hulltris[i], SIZE_MAX, hulltris[n]);
+            t = ADDTRI(n, i, q, hulltris[i], UINT32_MAX, hulltris[n]);
             hulltris[i] = LEGALIZE(t + 2);
             hullnext[n] = n; /* mark as removed */
             -- hullsize;
@@ -231,7 +241,7 @@ triangulate(size_t *delaunay, float *pt, size_t npt)
             q = hullprev[e];
             while (!ccw(v[0],v[1], pt[q*2],pt[q*2+1], pt[e*2],pt[e*2+1])) {
                 assert(*ntrivert + 3 < npt * 6);
-                t = ADDTRI(q, i, e, SIZE_MAX, hulltris[e], hulltris[q]);
+                t = ADDTRI(q, i, e, UINT32_MAX, hulltris[e], hulltris[q]);
                 LEGALIZE(t + 2);
                 hulltris[q] = t;
                 hullnext[e] = e; /* mark as removed */
@@ -269,7 +279,7 @@ free_buffers:
 }
 
 static int
-seed(float *pt, size_t npt, vid *s)
+seed(float *pt, uint32_t npt, vid *s)
 {
     /* Calculate pt bounding box */
     float maxx = FLT_MIN;
@@ -287,9 +297,9 @@ seed(float *pt, size_t npt, vid *s)
     /* Pick a seed close to the center */
     float ctrx = (minx + maxx) / 2.0f;
     float ctry = (miny + maxy) / 2.0f;
-    vid s0 = SIZE_MAX;
-    vid s1 = SIZE_MAX;
-    vid s2 = SIZE_MAX;
+    vid s0 = UINT32_MAX;
+    vid s1 = UINT32_MAX;
+    vid s2 = UINT32_MAX;
     float mind = FLT_MAX;
     for (vid i = 0; i < npt; ++ i) {
         float d = hypotf(pt[i*2]-ctrx, pt[i*2+1]-ctry);
@@ -348,10 +358,10 @@ seed(float *pt, size_t npt, vid *s)
 }
 
 static inline tid
-addtri(vid *triverts, size_t *ntrivert, tid *halfedge,
+addtri(vid *triverts, uint32_t *ntrivert, tid *halfedge,
        vid v0, vid v1, vid v2, tid t0, tid t1, tid t2)
 {
-    size_t t = *ntrivert;
+    uint32_t t = *ntrivert;
     triverts[t+0] = v0;
     triverts[t+1] = v1;
     triverts[t+2] = v2;
@@ -390,8 +400,8 @@ circr(float ax, float ay, float bx, float by, float cx, float cy)
     }
 }
 
-static inline size_t
-hashk(float cx, float cy, float vx, float vy, size_t mask)
+static inline uint32_t
+hashk(float cx, float cy, float vx, float vy, uint32_t mask)
 {
     float d0 = vx - cx;
     float d1 = vy - cy;
@@ -426,9 +436,9 @@ incircc(float ax, float ay, float bx, float by,
 
 static tid
 legalize(tid *halfedge, vid *hullprev, tid *hulltris, vid *triverts,
-         size_t *hullstrt, float *pt, size_t npt, tid a, tid *stack)
+         uint32_t *hullstrt, float *pt, uint32_t npt, tid a, tid *stack)
 {
-    size_t stacksz = 0;
+    uint32_t stacksz = 0;
 
     tid ar = 0;
 
@@ -462,7 +472,7 @@ legalize(tid *halfedge, vid *hullprev, tid *hulltris, vid *triverts,
         ar = a0 + (a + 2) % 3;
 
         /* Convex hull edge */
-        if (b == SIZE_MAX) {
+        if (b == UINT32_MAX) {
             if (stacksz == 0) break;
             a = stack[-- stacksz];
             continue;
@@ -489,7 +499,7 @@ legalize(tid *halfedge, vid *hullprev, tid *hulltris, vid *triverts,
              * Edge swapped on the other side of the hull (rare); fix
              * the halfedge reference
              */
-            if (hbl == SIZE_MAX) {
+            if (hbl == UINT32_MAX) {
                 vid e = *hullstrt;
                 do {
                     if (hulltris[e] == bl) {
@@ -519,7 +529,7 @@ static inline void
 link(tid *halfedge, tid a, tid b)
 {
     halfedge[a] = b;
-    if (b != SIZE_MAX) halfedge[b] = a;
+    if (b != UINT32_MAX) halfedge[b] = a;
 }
 
 static inline int
