@@ -11,18 +11,20 @@
 #ifndef DELAUNAY_HELPER_H_
 #define DELAUNAY_HELPER_H_
 
+#include <stddef.h>
+
 /* Pointers into buffer; see delaunator.h for layout */
 #define DELAUNAY_HALFEDGE(D,NPT) ((D))
-#define DELAUNAY_HULLHASH(D,NPT) ((D) + (NPT) * 6)
-#define DELAUNAY_HULLNEXT(D,NPT) ((D) + (NPT) * 7)
-#define DELAUNAY_HULLPREV(D,NPT) ((D) + (NPT) * 8)
-#define DELAUNAY_HULLTRIS(D,NPT) ((D) + (NPT) * 9)
-#define DELAUNAY_TRIVERTS(D,NPT) ((D) + (NPT) * 10)
-#define DELAUNAY_NTRIVERT(D,NPT) ((D) + (NPT) * 16)
-#define DELAUNAY_HULLSIZE(D,NPT) ((D) + (NPT) * 16 + 1)
-#define DELAUNAY_HULLSTRT(D,NPT) ((D) + (NPT) * 16 + 2)
+#define DELAUNAY_HULLHASH(D,NPT) ((D) + (size_t)(NPT) * 6)
+#define DELAUNAY_HULLNEXT(D,NPT) ((D) + (size_t)(NPT) * 7)
+#define DELAUNAY_HULLPREV(D,NPT) ((D) + (size_t)(NPT) * 8)
+#define DELAUNAY_HULLTRIS(D,NPT) ((D) + (size_t)(NPT) * 9)
+#define DELAUNAY_TRIVERTS(D,NPT) ((D) + (size_t)(NPT) * 10)
+#define DELAUNAY_NTRIVERT(D,NPT) ((D) + (size_t)(NPT) * 16)
+#define DELAUNAY_HULLSIZE(D,NPT) ((D) + (size_t)(NPT) * 16 + 1)
+#define DELAUNAY_HULLSTRT(D,NPT) ((D) + (size_t)(NPT) * 16 + 2)
 /* Max number of points before overflow */
-#define DELAUNAY_MAXNPT          ((UINT32_MAX - 3) / 16 / sizeof(uint32_t))
+#define DELAUNAY_MAXNPT          ((SIZE_MAX - 3) / 16 / sizeof(uint32_t))
 
 static inline void
 circumcenter(float ax, float ay, float bx, float by, float cx, float cy, float *c)
